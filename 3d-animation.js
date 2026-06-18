@@ -1,26 +1,31 @@
-// 3D Canvas Setup
+// 3D Loading Screen Animation
+const loadingScreen = document.createElement('div');
+loadingScreen.id = 'loading-screen';
+loadingScreen.style.cssText = `
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  z-index: 9999;
+  gap: 30px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+`;
+
+// 3D Animation Canvas
 const canvas = document.createElement('canvas');
-const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+canvas.style.cssText = `
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+`;
+loadingScreen.appendChild(canvas);
 
-// Set canvas to full screen
-function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-}
-
-resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
-
-// Style canvas
-canvas.style.position = 'fixed';
-canvas.style.top = '0';
-canvas.style.left = '0';
-canvas.style.pointerEvents = 'none';
-canvas.style.zIndex = '-1';
-canvas.style.opacity = '0.1';
-
-// Insert canvas at the beginning of body
-document.body.insertBefore(canvas, document.body.firstChild);
+document.body.appendChild(loadingScreen);
 
 // 3D Point class
 class Point3D {
@@ -65,13 +70,10 @@ class Point3D {
     }
 }
 
-// 3D Cube
+// Cube class
 class Cube3D {
-    constructor(size = 100, x = 0, y = 0, z = 0) {
+    constructor(size = 80) {
         this.size = size;
-        this.x = x;
-        this.y = y;
-        this.z = z;
         this.rotX = 0;
         this.rotY = 0;
         this.rotZ = 0;
@@ -93,9 +95,9 @@ class Cube3D {
     }
 
     update() {
-        this.rotX += 0.005;
-        this.rotY += 0.008;
-        this.rotZ += 0.003;
+        this.rotX += 0.01;
+        this.rotY += 0.015;
+        this.rotZ += 0.005;
 
         this.points.forEach(point => {
             point.rotateX(this.rotX);
@@ -104,17 +106,16 @@ class Cube3D {
         });
     }
 
-    draw() {
+    draw(ctx) {
         const projected = this.points.map(p => p.project(300));
 
-        ctx.strokeStyle = 'rgba(102, 126, 234, 0.8)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
         ctx.lineWidth = 2;
 
-        // Draw cube edges
         const edges = [
-            [0, 1], [1, 2], [2, 3], [3, 0], // Front
-            [4, 5], [5, 6], [6, 7], [7, 4], // Back
-            [0, 4], [1, 5], [2, 6], [3, 7]  // Sides
+            [0, 1], [1, 2], [2, 3], [3, 0],
+            [4, 5], [5, 6], [6, 7], [7, 4],
+            [0, 4], [1, 5], [2, 6], [3, 7]
         ];
 
         edges.forEach(([i, j]) => {
@@ -126,197 +127,58 @@ class Cube3D {
             ctx.stroke();
         });
 
-        // Draw vertices
         projected.forEach(p => {
-            ctx.fillStyle = 'rgba(37, 211, 102, 0.9)';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
             ctx.beginPath();
-            ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+            ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
             ctx.fill();
         });
     }
 }
 
-// 3D Sphere
-class Sphere3D {
-    constructor(radius = 50, x = 0, y = 0, z = 0) {
-        this.radius = radius;
-        this.x = x;
-        this.y = y;
-        this.z = z;
-        this.rotX = 0;
-        this.rotY = 0;
-        this.points = this.createPoints();
-    }
+const ctx = canvas.getContext('2d');
+const cube = new Cube3D(60);
 
-    createPoints() {
-        const points = [];
-        const latSegments = 8;
-        const lonSegments = 16;
+let animationId;
+const loadingText = document.createElement('div');
+loadingText.style.cssText = `
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: white;
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+  z-index: 10000;
+`;
+loadingText.innerHTML = '🔄 Loading...';
+loadingScreen.appendChild(loadingText);
 
-        for (let lat = 0; lat <= latSegments; lat++) {
-            const theta = (lat / latSegments) * Math.PI;
-            const sinTheta = Math.sin(theta);
-            const cosTheta = Math.cos(theta);
-
-            for (let lon = 0; lon < lonSegments; lon++) {
-                const phi = (lon / lonSegments) * Math.PI * 2;
-                const sinPhi = Math.sin(phi);
-                const cosPhi = Math.cos(phi);
-
-                const x = this.radius * sinTheta * cosPhi;
-                const y = this.radius * cosTheta;
-                const z = this.radius * sinTheta * sinPhi;
-
-                points.push(new Point3D(x, y, z));
-            }
-        }
-
-        return points;
-    }
-
-    update() {
-        this.rotX += 0.003;
-        this.rotY += 0.005;
-
-        this.points.forEach(point => {
-            point.rotateX(this.rotX);
-            point.rotateY(this.rotY);
-        });
-    }
-
-    draw() {
-        const projected = this.points.map(p => p.project(300));
-
-        ctx.fillStyle = 'rgba(37, 211, 102, 0.3)';
-        ctx.strokeStyle = 'rgba(37, 211, 102, 0.6)';
-        ctx.lineWidth = 1;
-
-        projected.forEach(p => {
-            const size = 2 * p.f;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-        });
-    }
-}
-
-// 3D Torus
-class Torus3D {
-    constructor(innerRadius = 30, outerRadius = 50, x = 0, y = 0, z = 0) {
-        this.innerRadius = innerRadius;
-        this.outerRadius = outerRadius;
-        this.x = x;
-        this.y = y;
-        this.z = z;
-        this.rotX = 0;
-        this.rotY = 0;
-        this.rotZ = 0;
-        this.points = this.createPoints();
-    }
-
-    createPoints() {
-        const points = [];
-        const uSegments = 16;
-        const vSegments = 16;
-
-        for (let u = 0; u < uSegments; u++) {
-            const theta = (u / uSegments) * Math.PI * 2;
-            const cosTheta = Math.cos(theta);
-            const sinTheta = Math.sin(theta);
-
-            for (let v = 0; v < vSegments; v++) {
-                const phi = (v / vSegments) * Math.PI * 2;
-                const cosPhi = Math.cos(phi);
-                const sinPhi = Math.sin(phi);
-
-                const x = (this.outerRadius + this.innerRadius * cosPhi) * cosTheta;
-                const y = this.innerRadius * sinPhi;
-                const z = (this.outerRadius + this.innerRadius * cosPhi) * sinTheta;
-
-                points.push(new Point3D(x, y, z));
-            }
-        }
-
-        return points;
-    }
-
-    update() {
-        this.rotX += 0.002;
-        this.rotY += 0.003;
-        this.rotZ += 0.004;
-
-        this.points.forEach(point => {
-            point.rotateX(this.rotX);
-            point.rotateY(this.rotY);
-            point.rotateZ(this.rotZ);
-        });
-    }
-
-    draw() {
-        const projected = this.points.map(p => p.project(250));
-
-        ctx.strokeStyle = 'rgba(102, 126, 234, 0.5)';
-        ctx.lineWidth = 1;
-
-        projected.forEach((p, i) => {
-            const nextP = projected[(i + 1) % projected.length];
-            if (Math.abs(p.z - nextP.z) < 50) {
-                ctx.beginPath();
-                ctx.moveTo(p.x, p.y);
-                ctx.lineTo(nextP.x, nextP.y);
-                ctx.stroke();
-            }
-        });
-    }
-}
-
-// Initialize 3D objects
-const cube = new Cube3D(80, 0, 0, 0);
-const sphere = new Sphere3D(60, 200, 150, -200);
-const torus = new Torus3D(30, 60, -200, -150, 0);
-
-// Animation loop
-function animate() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = 'rgba(10, 10, 10, 0.1)';
+function animate3D() {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-
+    
     cube.update();
-    sphere.update();
-    torus.update();
-
-    cube.draw();
-    sphere.draw();
-    torus.draw();
-
-    // Draw connecting lines
-    ctx.strokeStyle = 'rgba(37, 211, 102, 0.2)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([5, 5]);
+    cube.draw(ctx);
     
-    const linePoints = [
-        { x: canvas.width / 4, y: canvas.height / 4 },
-        { x: (canvas.width * 3) / 4, y: canvas.height / 4 },
-        { x: (canvas.width * 3) / 4, y: (canvas.height * 3) / 4 },
-        { x: canvas.width / 4, y: (canvas.height * 3) / 4 }
-    ];
-
-    for (let i = 0; i < linePoints.length; i++) {
-        const p1 = linePoints[i];
-        const p2 = linePoints[(i + 1) % linePoints.length];
-        ctx.beginPath();
-        ctx.moveTo(p1.x, p1.y);
-        ctx.lineTo(p2.x, p2.y);
-        ctx.stroke();
-    }
-    
-    ctx.setLineDash([]);
-
-    requestAnimationFrame(animate);
+    animationId = requestAnimationFrame(animate3D);
 }
 
-// Start animation
-animate();
+animate3D();
 
-console.log('🎨 3D Background Animation Loaded!');
+// Hide loading screen after 3 seconds
+setTimeout(() => {
+    loadingScreen.style.opacity = '0';
+    loadingScreen.style.transition = 'opacity 0.8s ease-out';
+    setTimeout(() => {
+        loadingScreen.remove();
+        cancelAnimationFrame(animationId);
+    }, 800);
+}, 3000);
+
+// Handle window resize
+window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+});
